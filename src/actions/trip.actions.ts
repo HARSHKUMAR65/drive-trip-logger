@@ -99,7 +99,7 @@ export async function updateTripAction(
     };
     const trip = await updateTrip(parsedPublicId.data, data);
     revalidatePath("/");
-    revalidatePath(`/trips/${parsedPublicId.data}/edit`);
+    revalidatePath(`/trips/edit/${parsedPublicId.data}`);
     return {
       success: true,
       message: "Trip updated",

@@ -1,33 +1,30 @@
 "use client";
 
 import { useState } from "react";
-import { addHours, format, isValid, parse } from "date-fns";
-import { CalendarDays, Check, Clock3 } from "lucide-react";
-import type { DateRange } from "react-day-picker";
+import {
+  format,
+  isBefore,
+  isSameDay,
+  isValid,
+  parse,
+  startOfDay,
+} from "date-fns";
+import { CalendarDays, Clock3 } from "lucide-react";
+import type { Matcher } from "react-day-picker";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 const DATE_TIME_FORMAT = "yyyy-MM-dd'T'HH:mm";
-const HOURS = Array.from({ length: 12 }, (_, index) => String(index + 1));
-const MINUTES = Array.from({ length: 60 }, (_, index) =>
-  String(index).padStart(2, "0"),
-);
-
-type Period = "AM" | "PM";
+const DEPARTURE_FALLBACK_TIME = "09:00";
+const ARRIVAL_FALLBACK_TIME = "10:00";
 
 interface TripDateTimeRangePickerProps {
   startValue: string;
@@ -38,19 +35,28 @@ interface TripDateTimeRangePickerProps {
   endError?: string;
 }
 
-interface TimeParts {
-  hour: string;
-  minute: string;
-  period: Period;
-}
-
-interface TimeSelectorProps {
+interface DateInputProps {
   id: string;
   label: string;
   date: Date | undefined;
-  disabled: boolean;
+  placeholder: string;
+  disabledDates?: Matcher | Matcher[];
   hasError: boolean;
-  onChange: (parts: TimeParts) => void;
+  onSelect: (date: Date | undefined) => void;
+}
+
+interface ScheduleRowProps {
+  id: string;
+  title: string;
+  description: string;
+  dateLabel: string;
+  timeLabel: string;
+  datePlaceholder: string;
+  value: string;
+  disabledDates?: Matcher | Matcher[];
+  hasError: boolean;
+  onDateChange: (date: Date | undefined) => void;
+  onTimeChange: (time: string) => void;
 }
 
 function parseDateTime(value: string): Date | undefined {
@@ -74,138 +80,144 @@ function combineDateAndTime(date: Date, time: string): string {
   return format(combined, DATE_TIME_FORMAT);
 }
 
-function getTimeParts(date: Date | undefined): TimeParts {
-  if (!date) {
-    return { hour: "9", minute: "00", period: "AM" };
-  }
-
-  const hour24 = date.getHours();
-  return {
-    hour: String(hour24 % 12 || 12),
-    minute: String(date.getMinutes()).padStart(2, "0"),
-    period: hour24 >= 12 ? "PM" : "AM",
-  };
+function timeInputValue(value: string): string {
+  const date = parseDateTime(value);
+  return date ? format(date, "HH:mm") : "";
 }
 
-function applyTimeParts(date: Date, parts: TimeParts): string {
-  const hour12 = Number(parts.hour) % 12;
-  const hour24 = hour12 + (parts.period === "PM" ? 12 : 0);
-  const combined = new Date(date);
-  combined.setHours(hour24, Number(parts.minute), 0, 0);
-  return format(combined, DATE_TIME_FORMAT);
+function isBeforeCalendarDay(date: Date, compareDate: Date): boolean {
+  return isBefore(startOfDay(date), startOfDay(compareDate));
 }
 
-function TimeSelector({
+function DateInput({
   id,
   label,
   date,
-  disabled,
+  placeholder,
+  disabledDates,
   hasError,
-  onChange,
-}: TimeSelectorProps) {
-  const parts = getTimeParts(date);
+  onSelect,
+}: DateInputProps) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="grid gap-2">
+      <label className="text-xs font-semibold text-muted-foreground" htmlFor={id}>
+        {label}
+      </label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            id={id}
+            type="button"
+            variant="outline"
+            className={cn(
+              "h-11 w-full justify-start px-3 text-left font-normal",
+              !date && "text-muted-foreground",
+              hasError && "border-destructive",
+            )}
+            aria-invalid={hasError}
+          >
+            <CalendarDays className="size-4" aria-hidden="true" />
+            <span className="truncate">
+              {date ? format(date, "PPP") : placeholder}
+            </span>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          sideOffset={8}
+          collisionPadding={8}
+          className="w-auto p-0"
+        >
+          <Calendar
+            mode="single"
+            selected={date}
+            disabled={disabledDates}
+            onSelect={(nextDate) => {
+              onSelect(nextDate);
+              setOpen(false);
+            }}
+            defaultMonth={date}
+            captionLayout="dropdown"
+            startMonth={new Date(2000, 0)}
+            endMonth={new Date(new Date().getFullYear() + 5, 11)}
+            className="[--cell-size:--spacing(9)] sm:[--cell-size:--spacing(10)]"
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+function ScheduleRow({
+  id,
+  title,
+  description,
+  dateLabel,
+  timeLabel,
+  datePlaceholder,
+  value,
+  disabledDates,
+  hasError,
+  onDateChange,
+  onTimeChange,
+}: ScheduleRowProps) {
+  const date = parseDateTime(value);
+
   return (
     <section
       className={cn(
-        "grid gap-2.5 rounded-xl border border-border bg-muted/30 p-3",
+        "grid gap-3 rounded-xl border border-border bg-muted/20 p-4",
         hasError && "border-destructive/60 bg-destructive/5",
       )}
-      aria-labelledby={`${id}-label`}
+      aria-labelledby={`${id}-heading`}
     >
-      <div className="flex min-w-0 items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-background text-primary shadow-sm">
-            <Clock3 className="size-4" aria-hidden="true" />
-          </span>
-          <div className="min-w-0">
-            <p id={`${id}-label`} className="text-sm font-semibold">
-              {label}
-            </p>
-            <p className="truncate text-xs text-muted-foreground">
-              {date ? format(date, "MMM d, yyyy") : "Select a date first"}
-            </p>
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-background text-primary shadow-sm">
+          <Clock3 className="size-4" aria-hidden="true" />
+        </span>
+        <div className="min-w-0">
+          <p id={`${id}-heading`} className="text-sm font-semibold">
+            {title}
+          </p>
+          <p className="text-xs text-muted-foreground">{description}</p>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
+        <DateInput
+          id={`${id}-date`}
+          label={dateLabel}
+          date={date}
+          placeholder={datePlaceholder}
+          disabledDates={disabledDates}
+          hasError={hasError}
+          onSelect={onDateChange}
+        />
+        <div className="grid gap-2">
+          <label
+            className="text-xs font-semibold text-muted-foreground"
+            htmlFor={`${id}-time`}
+          >
+            {timeLabel}
+          </label>
+          <div className="relative">
+            <Clock3
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <Input
+              id={`${id}-time`}
+              type="time"
+              value={timeInputValue(value)}
+              disabled={!date}
+              aria-invalid={hasError}
+              className="pl-9"
+              onChange={(event) => onTimeChange(event.target.value)}
+            />
           </div>
         </div>
-        {date ? (
-          <span className="shrink-0 text-sm font-bold text-primary">
-            {format(date, "h:mm a")}
-          </span>
-        ) : null}
-      </div>
-
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
-        <div className="min-w-0">
-          <Select
-            value={parts.hour}
-            onValueChange={(hour) => onChange({ ...parts, hour })}
-            disabled={disabled}
-          >
-            <SelectTrigger
-              aria-label={`${label} hour`}
-              aria-invalid={hasError}
-              className="h-9 w-full bg-background"
-            >
-              <SelectValue placeholder="Hour" />
-            </SelectTrigger>
-            <SelectContent>
-              {HOURS.map((hour) => (
-                <SelectItem key={hour} value={hour}>
-                  {hour.padStart(2, "0")}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <span className="text-lg font-bold text-muted-foreground">:</span>
-
-        <div className="min-w-0">
-          <Select
-            value={parts.minute}
-            onValueChange={(minute) => onChange({ ...parts, minute })}
-            disabled={disabled}
-          >
-            <SelectTrigger
-              aria-label={`${label} minute`}
-              aria-invalid={hasError}
-              className="h-9 w-full bg-background"
-            >
-              <SelectValue placeholder="Minute" />
-            </SelectTrigger>
-            <SelectContent>
-              {MINUTES.map((minute) => (
-                <SelectItem key={minute} value={minute}>
-                  {minute}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div
-        className="grid grid-cols-2 gap-1 rounded-lg bg-background p-1 ring-1 ring-border"
-        aria-label={`${label} AM or PM`}
-      >
-        {(["AM", "PM"] as const).map((period) => {
-          const selected = parts.period === period;
-
-          return (
-            <Button
-              key={period}
-              type="button"
-              size="sm"
-              variant={selected ? "default" : "ghost"}
-              className="h-8 rounded-md shadow-none"
-              disabled={disabled}
-              aria-pressed={selected}
-              onClick={() => onChange({ ...parts, period })}
-            >
-              {selected ? <Check aria-hidden="true" /> : null}
-              {period}
-            </Button>
-          );
-        })}
       </div>
     </section>
   );
@@ -219,159 +231,112 @@ export function TripDateTimeRangePicker({
   startError,
   endError,
 }: TripDateTimeRangePickerProps) {
-  const [open, setOpen] = useState(false);
   const startDate = parseDateTime(startValue);
   const endDate = parseDateTime(endValue);
-  const selectedRange: DateRange | undefined = startDate
-    ? { from: startDate, to: endDate }
-    : undefined;
-  const hasError = Boolean(startError || endError);
 
-  const handleRangeChange = (range: DateRange | undefined) => {
-    if (!range?.from) {
+  const handleStartDateChange = (date: Date | undefined) => {
+    if (!date) {
       onStartChange("");
-      onEndChange("");
       return;
     }
 
     const nextStart = combineDateAndTime(
-      range.from,
-      timePart(startValue, "09:00"),
+      date,
+      timePart(startValue, DEPARTURE_FALLBACK_TIME),
     );
     onStartChange(nextStart);
 
-    if (!range.to) {
-      onEndChange("");
+    if (!endDate) {
+      onEndChange(combineDateAndTime(date, ARRIVAL_FALLBACK_TIME));
       return;
     }
 
-    let nextEnd = combineDateAndTime(
-      range.to,
-      timePart(endValue, "10:00"),
-    );
-
-    if (new Date(nextEnd).getTime() <= new Date(nextStart).getTime()) {
-      nextEnd = format(addHours(new Date(nextStart), 1), DATE_TIME_FORMAT);
-    }
+    const shouldFollowDepartureDate = startDate
+      ? isSameDay(startDate, endDate)
+      : false;
+    const nextEnd =
+      shouldFollowDepartureDate || isBeforeCalendarDay(endDate, date)
+        ? combineDateAndTime(date, timePart(endValue, ARRIVAL_FALLBACK_TIME))
+        : format(endDate, DATE_TIME_FORMAT);
 
     onEndChange(nextEnd);
   };
 
-  const updateStartTime = (parts: TimeParts) => {
-    if (!startDate) {
+  const handleEndDateChange = (date: Date | undefined) => {
+    if (!date) {
+      onEndChange("");
       return;
     }
 
-    const nextStart = applyTimeParts(startDate, parts);
+    if (startDate && isBeforeCalendarDay(date, startDate)) {
+      return;
+    }
+
+    const nextEnd = combineDateAndTime(
+      date,
+      timePart(endValue, ARRIVAL_FALLBACK_TIME),
+    );
+
+    onEndChange(nextEnd);
+  };
+
+  const handleStartTimeChange = (time: string) => {
+    if (!startDate || !time) {
+      return;
+    }
+
+    const nextStart = combineDateAndTime(startDate, time);
     onStartChange(nextStart);
 
-    if (endDate && endDate.getTime() <= new Date(nextStart).getTime()) {
-      onEndChange(
-        format(addHours(new Date(nextStart), 1), DATE_TIME_FORMAT),
-      );
-    }
-  };
-
-  const updateEndTime = (parts: TimeParts) => {
     if (endDate) {
-      onEndChange(applyTimeParts(endDate, parts));
+      onEndChange(format(endDate, DATE_TIME_FORMAT));
     }
   };
 
-  const rangeLabel =
-    startDate && endDate
-      ? `${format(startDate, "MMM d · h:mm a")} - ${format(endDate, "MMM d · h:mm a")}`
-      : startDate
-        ? `${format(startDate, "MMM d · h:mm a")} - Select end`
-        : "Select dates and times";
+  const handleEndTimeChange = (time: string) => {
+    if (endDate && time) {
+      onEndChange(combineDateAndTime(endDate, time));
+    }
+  };
 
   return (
-    <div className="grid gap-2">
-      <label className="text-sm font-semibold" htmlFor="trip-date-range">
-        Trip date and time
-      </label>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            id="trip-date-range"
-            type="button"
-            variant="outline"
-            className={cn(
-              "h-12 w-full justify-start px-3 text-left font-normal",
-              !startDate && "text-muted-foreground",
-              hasError && "border-destructive",
-            )}
-            aria-invalid={hasError}
-          >
-            <CalendarDays aria-hidden="true" />
-            <span className="truncate">{rangeLabel}</span>
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent
-          align="start"
-          sideOffset={8}
-          collisionPadding={8}
-          className="max-h-[calc(100vh-1rem)] w-[min(46rem,calc(100vw-1rem))] gap-0 overflow-y-auto p-0"
-        >
-          <div className="border-b border-border bg-muted/35 px-4 py-2.5">
-            <p className="text-sm font-semibold">Select trip date and time</p>
-            <p className="text-xs text-muted-foreground">
-              Choose both dates, then set start and end times.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-[minmax(20rem,1fr)_20rem]">
-            <div className="flex items-start justify-center overflow-x-auto p-2 sm:p-3">
-              <Calendar
-                mode="range"
-                defaultMonth={startDate}
-                selected={selectedRange}
-                onSelect={handleRangeChange}
-                numberOfMonths={1}
-                captionLayout="dropdown"
-                startMonth={new Date(2000, 0)}
-                endMonth={new Date(new Date().getFullYear() + 5, 11)}
-                className="mx-auto [--cell-size:--spacing(9)] sm:[--cell-size:--spacing(10)]"
-              />
-            </div>
-
-            <div className="grid content-start gap-3 border-t border-border bg-muted/15 p-3 md:border-t-0 md:border-l">
-              <div className="grid gap-1">
-                <p className="text-sm font-semibold">Set times</p>
-                <p className="text-xs text-muted-foreground">
-                  Use hour, minute, and AM or PM.
-                </p>
-              </div>
-              <TimeSelector
-                id="trip-start-time"
-                label="Start time"
-                date={startDate}
-                disabled={!startDate}
-                hasError={Boolean(startError)}
-                onChange={updateStartTime}
-              />
-              <TimeSelector
-                id="trip-end-time"
-                label="End time"
-                date={endDate}
-                disabled={!endDate}
-                hasError={Boolean(endError)}
-                onChange={updateEndTime}
-              />
-              <Button
-                type="button"
-                className="mt-auto w-full"
-                disabled={!startDate || !endDate}
-                onClick={() => setOpen(false)}
-              >
-                Apply date and time
-              </Button>
-            </div>
-          </div>
-        </PopoverContent>
-      </Popover>
+    <div className="grid gap-3">
+      <div className="grid gap-1">
+        <p className="text-sm font-semibold">Trip schedule</p>
+        <p className="text-sm text-muted-foreground">
+          Select the departure date and time, then enter the arrival date and
+          time on the next line.
+        </p>
+      </div>
+      <ScheduleRow
+        id="trip-departure"
+        title="Departure"
+        description="Start date and time for the trip."
+        dateLabel="Departure date"
+        timeLabel="Departure time"
+        datePlaceholder="Select departure date"
+        value={startValue}
+        hasError={Boolean(startError)}
+        onDateChange={handleStartDateChange}
+        onTimeChange={handleStartTimeChange}
+      />
+      <ScheduleRow
+        id="trip-arrival"
+        title="Arrival"
+        description="End date and time for the trip."
+        dateLabel="Arrival date"
+        timeLabel="Arrival time"
+        datePlaceholder="Select arrival date"
+        value={endValue}
+        disabledDates={
+          startDate ? { before: startOfDay(startDate) } : undefined
+        }
+        hasError={Boolean(endError)}
+        onDateChange={handleEndDateChange}
+        onTimeChange={handleEndTimeChange}
+      />
       <p className="text-sm text-muted-foreground">
-        Select the date range and choose AM or PM for both times.
+        Arrival must be later than departure.
       </p>
       {startError ? (
         <p className="text-sm font-medium text-destructive" role="alert">

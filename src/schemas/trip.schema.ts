@@ -21,8 +21,8 @@ export const tripFormSchema = z
   .object({
     startLocation: requiredLocation("Start location"),
     endLocation: requiredLocation("End location"),
-    startTime: dateTimeField("Start time"),
-    endTime: dateTimeField("End time"),
+    startTime: dateTimeField("Departure time"),
+    endTime: dateTimeField("Arrival time"),
     distance: z
       .number({ message: "Distance is required" })
       .finite("Enter a valid distance")
@@ -37,7 +37,7 @@ export const tripFormSchema = z
   .refine(
     (data) => new Date(data.endTime).getTime() > new Date(data.startTime).getTime(),
     {
-      message: "End time must be after start time",
+      message: "Arrival time must be after departure time",
       path: ["endTime"],
     },
   );

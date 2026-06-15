@@ -48,7 +48,7 @@ function stopRowNavigation(event: React.SyntheticEvent) {
 
 function useOpenTripEditor(publicId: string) {
   const router = useRouter();
-  const href = `/trips/${publicId}/edit`;
+  const href = `/trips/edit/${publicId}`;
 
   const openEditor = () => {
     router.push(href);
@@ -247,7 +247,7 @@ export function TripList({
           <TableHeader className="bg-muted/55">
             <TableRow className="hover:bg-transparent">
               <TableHead>Route</TableHead>
-              <TableHead>Date / time</TableHead>
+              <TableHead>Schedule</TableHead>
               <TableHead>Distance</TableHead>
               <TableHead>Notes</TableHead>
               <TableHead>Memorable</TableHead>

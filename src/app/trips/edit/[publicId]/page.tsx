@@ -17,7 +17,6 @@ interface EditTripPageProps {
 
 export default async function EditTripPage({ params }: EditTripPageProps) {
   await renderDynamically();
-
   const { publicId } = await params;
   const trip = await getTripByPublicId(publicId);
 
