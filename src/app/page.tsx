@@ -1,9 +1,7 @@
-import Link from "next/link";
-import { Plus, Route, Sparkles, Star } from "lucide-react";
+
 
 import { SummaryCards } from "@/components/trip/SummaryCards";
 import { TripFilterTabs } from "@/components/trip/TripFilterTabs";
-import { Button } from "@/components/ui/button";
 import { renderDynamically } from "@/lib/route-rendering";
 import { getAllTrips, getTripSummary } from "@/services/trip.service";
 

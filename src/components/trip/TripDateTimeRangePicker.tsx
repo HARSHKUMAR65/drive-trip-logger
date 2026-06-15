@@ -4,12 +4,11 @@ import { useState } from "react";
 import {
   format,
   isBefore,
-  isSameDay,
   isValid,
   parse,
   startOfDay,
 } from "date-fns";
-import { CalendarDays, Clock3 } from "lucide-react";
+import { ArrowDown, ArrowRight, CalendarDays, Clock3 , ArrowUp , ArrowLeft } from "lucide-react";
 import type { Matcher } from "react-day-picker";
 
 import { Button } from "@/components/ui/button";
@@ -103,7 +102,10 @@ function DateInput({
 
   return (
     <div className="grid gap-2">
-      <label className="text-xs font-semibold text-muted-foreground" htmlFor={id}>
+      <label
+        className="text-xs font-semibold text-muted-foreground"
+        htmlFor={id}
+      >
         {label}
       </label>
       <Popover open={open} onOpenChange={setOpen}>
@@ -187,7 +189,7 @@ function ScheduleRow({
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
+      <div className="mt-3 grid grid-cols-1 gap-3  ">
         <DateInput
           id={`${id}-date`}
           label={dateLabel}
@@ -248,20 +250,9 @@ export function TripDateTimeRangePicker({
     );
     onStartChange(nextStart);
 
-    if (!endDate) {
-      onEndChange(combineDateAndTime(date, ARRIVAL_FALLBACK_TIME));
-      return;
+    if (endDate && isBeforeCalendarDay(endDate, date)) {
+      onEndChange("");
     }
-
-    const shouldFollowDepartureDate = startDate
-      ? isSameDay(startDate, endDate)
-      : false;
-    const nextEnd =
-      shouldFollowDepartureDate || isBeforeCalendarDay(endDate, date)
-        ? combineDateAndTime(date, timePart(endValue, ARRIVAL_FALLBACK_TIME))
-        : format(endDate, DATE_TIME_FORMAT);
-
-    onEndChange(nextEnd);
   };
 
   const handleEndDateChange = (date: Date | undefined) => {
@@ -306,39 +297,58 @@ export function TripDateTimeRangePicker({
       <div className="grid gap-1">
         <p className="text-sm font-semibold">Trip schedule</p>
         <p className="text-sm text-muted-foreground">
-          Select the departure date and time, then enter the arrival date and
-          time on the next line.
+          Select when the trip started and when you arrived.
         </p>
       </div>
-      <ScheduleRow
-        id="trip-departure"
-        step="1"
-        title="Departure"
-        description="Start date and time for the trip."
-        dateLabel="Departure date"
-        timeLabel="Departure time"
-        datePlaceholder="Select departure date"
-        value={startValue}
-        hasError={Boolean(startError)}
-        onDateChange={handleStartDateChange}
-        onTimeChange={handleStartTimeChange}
-      />
-      <ScheduleRow
-        id="trip-arrival"
-        step="2"
-        title="Arrival"
-        description="Same-day by default; choose a later date for longer trips."
-        dateLabel="Arrival date"
-        timeLabel="Arrival time"
-        datePlaceholder="Select arrival date"
-        value={endValue}
-        disabledDates={
-          startDate ? { before: startOfDay(startDate) } : undefined
-        }
-        hasError={Boolean(endError)}
-        onDateChange={handleEndDateChange}
-        onTimeChange={handleEndTimeChange}
-      />
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <div className="min-w-0 flex-1">
+          <ScheduleRow
+            id="trip-departure"
+            step="1"
+            title="Departure"
+            description="Start date and time for the trip."
+            dateLabel="Departure date"
+            timeLabel="Departure time"
+            datePlaceholder="Select departure date"
+            value={startValue}
+            hasError={Boolean(startError)}
+            onDateChange={handleStartDateChange}
+            onTimeChange={handleStartTimeChange}
+          />
+        </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="self-center rounded-full bg-background shadow-sm flex items-center justify-center  md:flex-col flex-row gap-0 "
+          title="Select arrival date"
+        >
+          <ArrowDown className="lg:hidden" aria-hidden="true" />
+          <ArrowUp className="lg:hidden" aria-hidden="true" />
+          <ArrowRight className="hidden lg:block" aria-hidden="true" />
+          <ArrowLeft className="hidden lg:block" aria-hidden="true" />
+        </Button>
+
+        <div className="min-w-0 flex-1">
+          <ScheduleRow
+            id="trip-arrival"
+            step="2"
+            title="Arrival"
+            description="Choose the arrival date and time."
+            dateLabel="Arrival date"
+            timeLabel="Arrival time"
+            datePlaceholder="Select arrival date"
+            value={endValue}
+            disabledDates={
+              startDate ? { before: startOfDay(startDate) } : undefined
+            }
+            hasError={Boolean(endError)}
+            onDateChange={handleEndDateChange}
+            onTimeChange={handleEndTimeChange}
+          />
+        </div>
+      </div>
       <p className="text-sm text-muted-foreground">
         Arrival must be later than departure.
       </p>

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, LoaderCircle, Save } from "lucide-react";
+import { ArrowLeft, LoaderCircle, Plus, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -250,16 +250,18 @@ export function TripForm({
               >
                 {isPending ? (
                   <LoaderCircle className="animate-spin" aria-hidden="true" />
-                ) : (
+                ) : isEditing ? (
                   <Save aria-hidden="true" />
+                ) : (
+                  <Plus aria-hidden="true" />
                 )}
                 {isPending
                   ? isEditing
                     ? "Saving..."
-                    : "Logging..."
+                    : "Adding..."
                   : isEditing
                     ? "Save changes"
-                    : "Log trip"}
+                    : "Add trip"}
               </Button>
             </div>
           </form>
