@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { LoaderCircle } from "lucide-react";
 
-import { getTripsAction } from "@/actions/trip.actions";
 import { EmptyState } from "@/components/common/EmptyState";
 import { TripList } from "@/components/trip/TripList";
+import { Button } from "@/components/ui/button";
 import {
   Tabs,
   TabsContent,
@@ -14,45 +15,50 @@ import {
 } from "@/components/ui/tabs";
 import type { Trip, TripFilter } from "@/types/trip";
 
+const PAGE_SIZE = 10;
+
 interface TripFilterTabsProps {
   initialTrips: Trip[];
+  currentFilter: TripFilter;
+  currentLimit: number;
+  totalTripsCount: number;
+  totalMemorableCount: number;
 }
 
-export function TripFilterTabs({ initialTrips }: TripFilterTabsProps) {
+export function TripFilterTabs({
+  initialTrips,
+  currentFilter,
+  currentLimit,
+  totalTripsCount,
+  totalMemorableCount,
+}: TripFilterTabsProps) {
   const router = useRouter();
-  const [filter, setFilter] = useState<TripFilter>("all");
-  const [trips, setTrips] = useState<Trip[]>(initialTrips);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-
-  const loadTrips = (nextFilter: TripFilter) => {
-    setLoadError(null);
-    startTransition(async () => {
-      const result = await getTripsAction(nextFilter);
-
-      if (!result.success || !result.data) {
-        setLoadError(result.message);
-        return;
-      }
-
-      setFilter(nextFilter);
-      setTrips(result.data);
-    });
-  };
 
   const handleFilterChange = (value: string) => {
     if (value === "all" || value === "memorable") {
-      loadTrips(value);
+      startTransition(() => {
+        router.push(`/?filter=${value}&limit=${PAGE_SIZE}`, { scroll: false });
+      });
     }
   };
 
-  const handleTripsChanged = () => {
-    loadTrips(filter);
-    router.refresh();
+  const handleLoadMore = () => {
+    const nextLimit = currentLimit + PAGE_SIZE;
+    startTransition(() => {
+      router.push(`/?filter=${currentFilter}&limit=${nextLimit}`, { scroll: false });
+    });
   };
 
+  const handleTripsChanged = () => {
+    // Next.js Server Action revalidation automatically updates our route data.
+  };
+
+  const totalCount = currentFilter === "all" ? totalTripsCount : totalMemorableCount;
+  const hasMore = initialTrips.length < totalCount;
+
   return (
-    <Tabs value={filter} onValueChange={handleFilterChange}>
+    <Tabs value={currentFilter} onValueChange={handleFilterChange}>
       <TabsList aria-label="Filter trips">
         <TabsTrigger value="all" disabled={isPending}>
           All trips
@@ -61,26 +67,18 @@ export function TripFilterTabs({ initialTrips }: TripFilterTabsProps) {
           Memorable
         </TabsTrigger>
       </TabsList>
-      <TabsContent value={filter}>
-        {loadError ? (
-          <p
-            className="mb-4 rounded-xl border border-destructive/20 bg-destructive/8 px-4 py-3 text-sm font-medium text-destructive"
-            role="alert"
-          >
-            {loadError}
-          </p>
-        ) : null}
+      <TabsContent value={currentFilter}>
         <TripList
-          trips={trips}
+          trips={initialTrips}
           onTripsChanged={handleTripsChanged}
           isLoading={isPending}
           emptyState={
-            filter === "memorable" ? (
+            currentFilter === "memorable" ? (
               <EmptyState
                 title="No memorable trips yet"
                 description="Star a trip that stood out and it will appear here for easy recall."
                 actionLabel="Browse all trips"
-                onAction={() => loadTrips("all")}
+                onAction={() => handleFilterChange("all")}
               />
             ) : (
               <EmptyState
@@ -92,6 +90,19 @@ export function TripFilterTabs({ initialTrips }: TripFilterTabsProps) {
             )
           }
         />
+        {hasMore && (
+          <div className="mt-8 flex justify-center">
+            <Button
+              variant="outline"
+              onClick={handleLoadMore}
+              disabled={isPending}
+              className="min-w-36 transition-all duration-200 hover:bg-secondary/20"
+            >
+              {isPending && <LoaderCircle className="mr-2 size-4 animate-spin" />}
+              Load more
+            </Button>
+          </div>
+        )}
       </TabsContent>
     </Tabs>
   );

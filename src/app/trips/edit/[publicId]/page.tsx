@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight } from "lucide-react";
+import { z } from "zod";
 
 import { TripForm } from "@/components/trip/TripForm";
 import { renderDynamically } from "@/lib/route-rendering";
-import { formatDateTimeInput } from "@/lib/utils";
 import { getTripByPublicId } from "@/services/trip.service";
 
 export const metadata = {
@@ -18,7 +18,19 @@ interface EditTripPageProps {
 export default async function EditTripPage({ params }: EditTripPageProps) {
   await renderDynamically();
   const { publicId } = await params;
-  const trip = await getTripByPublicId(publicId);
+
+  // If the parameter is not a valid UUID, show 404 directly to prevent DB query crashes
+  if (!z.string().uuid().safeParse(publicId).success) {
+    notFound();
+  }
+
+  let trip = null;
+  try {
+    trip = await getTripByPublicId(publicId);
+  } catch (error) {
+    console.error("Error loading trip for edit:", error);
+    notFound();
+  }
 
   if (!trip) {
     notFound();
@@ -48,8 +60,8 @@ export default async function EditTripPage({ params }: EditTripPageProps) {
         defaultValues={{
           startLocation: trip.startLocation,
           endLocation: trip.endLocation,
-          startTime: formatDateTimeInput(trip.startTime),
-          endTime: formatDateTimeInput(trip.endTime),
+          startTime: trip.startTime.toISOString(),
+          endTime: trip.endTime.toISOString(),
           distance: trip.distance,
           notes: trip.notes ?? "",
         }}

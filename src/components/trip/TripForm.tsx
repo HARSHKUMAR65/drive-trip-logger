@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { format } from "date-fns";
 import { ArrowLeft, LoaderCircle, Plus, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -32,6 +33,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   MAX_NOTES_LENGTH,
   tripFormSchema,
@@ -41,7 +43,53 @@ import {
 interface TripFormProps {
   mode: "create" | "edit";
   tripPublicId?: string;
-  defaultValues: TripFormValues;
+  defaultValues: {
+    startLocation: string;
+    endLocation: string;
+    startTime: string;
+    endTime: string;
+    distance: number;
+    notes: string;
+  };
+}
+
+function TripFormSkeleton() {
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="border-b border-border/70 bg-card p-6 sm:p-8">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="mt-2 h-4 w-96" />
+      </CardHeader>
+      <CardContent className="space-y-7 p-6 sm:p-8">
+        <div className="grid gap-5 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-11 w-full" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-11 w-full" />
+          </div>
+        </div>
+        <div className="space-y-3">
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-11 w-full" />
+        </div>
+        <div className="space-y-2 sm:max-w-[calc(50%-0.625rem)]">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-11 w-full" />
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+        <div className="flex flex-col-reverse gap-3 border-t border-border/70 pt-6 sm:flex-row sm:justify-end">
+          <Skeleton className="h-11 w-24" />
+          <Skeleton className="h-11 w-36" />
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 export function TripForm({
@@ -50,13 +98,37 @@ export function TripForm({
   defaultValues,
 }: TripFormProps) {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const resolvedDefaultValues = useMemo(() => {
+    if (mode === "edit" && defaultValues.startTime && defaultValues.endTime) {
+      try {
+        const localStart = format(new Date(defaultValues.startTime), "yyyy-MM-dd'T'HH:mm");
+        const localEnd = format(new Date(defaultValues.endTime), "yyyy-MM-dd'T'HH:mm");
+        return {
+          ...defaultValues,
+          startTime: localStart,
+          endTime: localEnd,
+        };
+      } catch (e) {
+        console.error("Failed to parse and format default values:", e);
+      }
+    }
+    return defaultValues as TripFormValues;
+  }, [defaultValues, mode]);
+
   const form = useForm<TripFormValues>({
     resolver: zodResolver(tripFormSchema),
-    defaultValues,
+    defaultValues: resolvedDefaultValues,
     mode: "onBlur",
   });
+
   const notesLength = form.watch("notes").length;
   const startTime = form.watch("startTime");
   const endTime = form.watch("endTime");
@@ -65,10 +137,24 @@ export function TripForm({
   const onSubmit = (values: TripFormValues) => {
     setActionError(null);
     startTransition(async () => {
+      const submissionValues = { ...values };
+      try {
+        if (values.startTime) {
+          submissionValues.startTime = new Date(values.startTime).toISOString();
+        }
+        if (values.endTime) {
+          submissionValues.endTime = new Date(values.endTime).toISOString();
+        }
+      } catch (e) {
+        console.error("Failed to convert submission values to UTC:", e);
+        setActionError("Invalid date/time values");
+        return;
+      }
+
       const result =
         isEditing && tripPublicId
-          ? await updateTripAction(tripPublicId, values)
-          : await createTripAction(values);
+          ? await updateTripAction(tripPublicId, submissionValues)
+          : await createTripAction(submissionValues);
 
       if (!result.success) {
         setActionError(result.message);
@@ -81,6 +167,10 @@ export function TripForm({
       router.refresh();
     });
   };
+
+  if (!mounted) {
+    return <TripFormSkeleton />;
+  }
 
   return (
     <Card className="overflow-hidden">

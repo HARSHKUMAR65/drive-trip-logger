@@ -29,13 +29,19 @@ function toTrip(trip: PrismaTrip): Trip {
   };
 }
 
-export async function getAllTrips(filter: TripFilter): Promise<Trip[]> {
+export async function getAllTrips(
+  filter: TripFilter,
+  limit?: number,
+  offset?: number,
+): Promise<Trip[]> {
   try {
     const where = filter === "memorable" ? { memorable: true } : undefined;
 
     const trips = await prisma.trip.findMany({
       where,
       orderBy: { startTime: "desc" },
+      ...(limit !== undefined && { take: limit }),
+      ...(offset !== undefined && { skip: offset }),
     });
 
     return trips.map(toTrip);
@@ -69,22 +75,9 @@ export async function updateTrip(
   data: UpdateTripInput,
 ): Promise<Trip> {
   try {
-    const updates: Partial<CreateTripInput> = {
-      ...(data.startLocation !== undefined && {
-        startLocation: data.startLocation,
-      }),
-      ...(data.endLocation !== undefined && {
-        endLocation: data.endLocation,
-      }),
-      ...(data.startTime !== undefined && { startTime: data.startTime }),
-      ...(data.endTime !== undefined && { endTime: data.endTime }),
-      ...(data.distance !== undefined && { distance: data.distance }),
-      ...(data.notes !== undefined && { notes: data.notes }),
-      ...(data.memorable !== undefined && { memorable: data.memorable }),
-    };
     const trip = await prisma.trip.update({
       where: { publicId },
-      data: updates,
+      data,
     });
 
     return toTrip(trip);
@@ -103,19 +96,17 @@ export async function deleteTrip(publicId: string): Promise<void> {
 
 export async function toggleMemorable(publicId: string): Promise<Trip> {
   try {
-    const current = await prisma.trip.findUnique({
-      where: { publicId },
-      select: { memorable: true },
-    });
+    const result = await prisma.$queryRaw<PrismaTrip[]>`
+      UPDATE "Trip"
+      SET "memorable" = NOT "memorable"
+      WHERE "publicId" = ${publicId}::uuid
+      RETURNING *
+    `;
 
-    if (!current) {
+    const trip = result[0];
+    if (!trip) {
       throw new Error("Trip not found");
     }
-
-    const trip = await prisma.trip.update({
-      where: { publicId },
-      data: { memorable: !current.memorable },
-    });
 
     return toTrip(trip);
   } catch (error) {

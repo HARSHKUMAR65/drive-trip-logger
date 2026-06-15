@@ -250,8 +250,13 @@ export function TripDateTimeRangePicker({
     );
     onStartChange(nextStart);
 
-    if (endDate && isBeforeCalendarDay(endDate, date)) {
-      onEndChange("");
+    if (endValue) {
+      const parsedNextStart = parseDateTime(nextStart);
+      const parsedEnd = parseDateTime(endValue);
+      if (parsedNextStart && parsedEnd && parsedEnd.getTime() <= parsedNextStart.getTime()) {
+        const adjustedEnd = new Date(parsedNextStart.getTime() + 60 * 60 * 1000);
+        onEndChange(format(adjustedEnd, DATE_TIME_FORMAT));
+      }
     }
   };
 
@@ -270,7 +275,14 @@ export function TripDateTimeRangePicker({
       timePart(endValue, ARRIVAL_FALLBACK_TIME),
     );
 
-    onEndChange(nextEnd);
+    const parsedStart = parseDateTime(startValue);
+    const parsedNextEnd = parseDateTime(nextEnd);
+    if (parsedStart && parsedNextEnd && parsedNextEnd.getTime() <= parsedStart.getTime()) {
+      const adjustedEnd = new Date(parsedStart.getTime() + 60 * 60 * 1000);
+      onEndChange(format(adjustedEnd, DATE_TIME_FORMAT));
+    } else {
+      onEndChange(nextEnd);
+    }
   };
 
   const handleStartTimeChange = (time: string) => {
@@ -281,14 +293,27 @@ export function TripDateTimeRangePicker({
     const nextStart = combineDateAndTime(startDate, time);
     onStartChange(nextStart);
 
-    if (endDate) {
-      onEndChange(format(endDate, DATE_TIME_FORMAT));
+    if (endValue) {
+      const parsedNextStart = parseDateTime(nextStart);
+      const parsedEnd = parseDateTime(endValue);
+      if (parsedNextStart && parsedEnd && parsedEnd.getTime() <= parsedNextStart.getTime()) {
+        const adjustedEnd = new Date(parsedNextStart.getTime() + 60 * 60 * 1000);
+        onEndChange(format(adjustedEnd, DATE_TIME_FORMAT));
+      }
     }
   };
 
   const handleEndTimeChange = (time: string) => {
     if (endDate && time) {
-      onEndChange(combineDateAndTime(endDate, time));
+      const nextEnd = combineDateAndTime(endDate, time);
+      const parsedStart = parseDateTime(startValue);
+      const parsedNextEnd = parseDateTime(nextEnd);
+      if (parsedStart && parsedNextEnd && parsedNextEnd.getTime() <= parsedStart.getTime()) {
+        const adjustedEnd = new Date(parsedStart.getTime() + 60 * 60 * 1000);
+        onEndChange(format(adjustedEnd, DATE_TIME_FORMAT));
+      } else {
+        onEndChange(nextEnd);
+      }
     }
   };
 

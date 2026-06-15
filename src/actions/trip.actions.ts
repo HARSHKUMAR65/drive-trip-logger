@@ -6,7 +6,6 @@ import { z } from "zod";
 import {
   createTrip,
   deleteTrip,
-  getAllTrips,
   toggleMemorable,
   updateTrip,
 } from "@/services/trip.service";
@@ -18,7 +17,6 @@ import type {
   CreateTripInput,
   ServerActionResult,
   Trip,
-  TripFilter,
   UpdateTripInput,
 } from "@/types/trip";
 
@@ -26,7 +24,6 @@ const publicIdSchema = z
   .string()
   .trim()
   .uuid("A valid trip identifier is required");
-const tripFilterSchema = z.enum(["all", "memorable"]);
 
 function validationMessage(error: z.ZodError): string {
   return error.issues[0]?.message ?? "Check the form and try again";
@@ -60,7 +57,8 @@ export async function createTripAction(
       message: "Trip added successfully",
       data: trip,
     };
-  } catch {
+  } catch (error) {
+    console.error("Error in createTripAction:", error);
     return {
       success: false,
       message: "Failed to add trip. Please try again.",
@@ -92,13 +90,13 @@ export async function updateTripAction(
     };
     const trip = await updateTrip(parsedPublicId.data, data);
     revalidatePath("/");
-    revalidatePath(`/trips/edit/${parsedPublicId.data}`);
     return {
       success: true,
       message: "Trip updated",
       data: trip,
     };
-  } catch {
+  } catch (error) {
+    console.error("Error in updateTripAction:", error);
     return {
       success: false,
       message: "Failed to save trip. Please try again.",
@@ -123,7 +121,8 @@ export async function deleteTripAction(
       message: "Trip deleted",
       data: { publicId: parsed.data },
     };
-  } catch {
+  } catch (error) {
+    console.error("Error in deleteTripAction:", error);
     return {
       success: false,
       message: "Failed to delete trip. Please try again.",
@@ -150,7 +149,8 @@ export async function toggleMemorableAction(
         : "Removed from memorable",
       data: trip,
     };
-  } catch {
+  } catch (error) {
+    console.error("Error in toggleMemorableAction:", error);
     return {
       success: false,
       message: "Failed to update memorable status. Please try again.",
@@ -158,29 +158,3 @@ export async function toggleMemorableAction(
   }
 }
 
-export async function getTripsAction(
-  filter: TripFilter,
-): Promise<ServerActionResult<Trip[]>> {
-  const parsedFilter = tripFilterSchema.safeParse(filter);
-
-  if (!parsedFilter.success) {
-    return {
-      success: false,
-      message: "Invalid trip filter request.",
-    };
-  }
-
-  try {
-    const trips = await getAllTrips(parsedFilter.data);
-    return {
-      success: true,
-      message: "Trips loaded",
-      data: trips,
-    };
-  } catch {
-    return {
-      success: false,
-      message: "Failed to load trips. Please try again.",
-    };
-  }
-}

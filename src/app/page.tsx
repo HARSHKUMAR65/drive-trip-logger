@@ -5,11 +5,22 @@ import { TripFilterTabs } from "@/components/trip/TripFilterTabs";
 import { renderDynamically } from "@/lib/route-rendering";
 import { getAllTrips, getTripSummary } from "@/services/trip.service";
 
-export default async function HomePage() {
+interface HomePageProps {
+  searchParams: Promise<{
+    filter?: string;
+    limit?: string;
+  }>;
+}
+
+export default async function HomePage({ searchParams }: HomePageProps) {
   await renderDynamically();
 
+  const resolvedParams = await searchParams;
+  const filter = resolvedParams.filter === "memorable" ? "memorable" : "all";
+  const limit = Number(resolvedParams.limit) || 10;
+
   const [trips, summary] = await Promise.all([
-    getAllTrips("all"),
+    getAllTrips(filter, limit, 0),
     getTripSummary(),
   ]);
 
@@ -50,7 +61,13 @@ export default async function HomePage() {
               Review every route or narrow the list to your standout drives.
             </p>
           </div>
-          <TripFilterTabs initialTrips={trips} />
+          <TripFilterTabs
+            initialTrips={trips}
+            currentFilter={filter}
+            currentLimit={limit}
+            totalTripsCount={summary.totalTrips}
+            totalMemorableCount={summary.memorableTrips}
+          />
         </section>
       </div>
     </main>

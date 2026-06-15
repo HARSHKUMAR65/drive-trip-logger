@@ -18,16 +18,25 @@ const dateTimeField = (label: string) =>
     .min(1, `${label} is required`)
     .refine(
       (value) => {
-        if (!DATE_TIME_LOCAL_PATTERN.test(value)) {
-          return false;
+        if (DATE_TIME_LOCAL_PATTERN.test(value)) {
+          const parsedDate = parse(value, DATE_TIME_LOCAL_FORMAT, new Date());
+          return (
+            isValid(parsedDate) &&
+            format(parsedDate, DATE_TIME_LOCAL_FORMAT) === value
+          );
         }
 
-        const parsedDate = parse(value, DATE_TIME_LOCAL_FORMAT, new Date());
+        // Match ISO 8601 string format (e.g. 2026-06-15T17:32:00.000Z or with offsets)
+        const isIsoString =
+          /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/.test(value) ||
+          /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?([+-]\d{2}:\d{2}|[+-]\d{4})$/.test(value);
+        
+        if (isIsoString) {
+          const date = new Date(value);
+          return isValid(date) && !Number.isNaN(date.getTime());
+        }
 
-        return (
-          isValid(parsedDate) &&
-          format(parsedDate, DATE_TIME_LOCAL_FORMAT) === value
-        );
+        return false;
       },
       {
         message: `Enter a valid ${label.toLowerCase()}`,
@@ -43,7 +52,8 @@ export const tripFormSchema = z
     distance: z
       .number({ message: "Distance is required" })
       .finite("Enter a valid distance")
-      .positive("Distance must be greater than 0"),
+      .positive("Distance must be greater than 0")
+      .max(100000, "Distance must be 100,000 km or fewer"),
     notes: z
       .string()
       .max(

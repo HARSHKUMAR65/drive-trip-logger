@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -23,12 +24,34 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
+  cn,
   formatDistance,
   formatTripDay,
   formatTripTimeRange,
 } from "@/lib/utils";
 import type { Trip } from "@/types/trip";
+
+function ClientDateTime({
+  children,
+  skeletonWidth = "w-24",
+}: {
+  children: () => React.ReactNode;
+  skeletonWidth?: string;
+}) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return <Skeleton className={cn("h-4", skeletonWidth)} />;
+  }
+
+  return <>{children()}</>;
+}
 
 interface TripListProps {
   trips: Trip[];
@@ -153,10 +176,16 @@ function DesktopTripRow({ trip, onTripsChanged }: TripRowProps) {
         </div>
       </TableCell>
       <TableCell className="min-w-44">
-        <p className="font-medium">{formatTripDay(trip.startTime)}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          {formatTripTimeRange(trip.startTime, trip.endTime)}
-        </p>
+        <div className="font-medium">
+          <ClientDateTime skeletonWidth="w-28">
+            {() => formatTripDay(new Date(trip.startTime))}
+          </ClientDateTime>
+        </div>
+        <div className="mt-0.5 text-xs text-muted-foreground">
+          <ClientDateTime skeletonWidth="w-32">
+            {() => formatTripTimeRange(new Date(trip.startTime), new Date(trip.endTime))}
+          </ClientDateTime>
+        </div>
       </TableCell>
       <TableCell className="whitespace-nowrap font-semibold">
         {formatDistance(trip.distance)}
@@ -212,7 +241,9 @@ function MobileTripRow({ trip, onTripsChanged }: TripRowProps) {
           <span className="truncate">{trip.endLocation}</span>
         </div>
         <span className="shrink-0 text-xs font-medium text-muted-foreground">
-          {formatTripDay(trip.startTime)}
+          <ClientDateTime skeletonWidth="w-20">
+            {() => formatTripDay(new Date(trip.startTime))}
+          </ClientDateTime>
         </span>
       </div>
       <div className="mt-2">
@@ -221,9 +252,11 @@ function MobileTripRow({ trip, onTripsChanged }: TripRowProps) {
       <div className="mt-3 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-semibold">{formatDistance(trip.distance)}</p>
-          <p className="truncate text-xs text-muted-foreground">
-            {formatTripTimeRange(trip.startTime, trip.endTime)}
-          </p>
+          <div className="truncate text-xs text-muted-foreground">
+            <ClientDateTime skeletonWidth="w-28">
+              {() => formatTripTimeRange(new Date(trip.startTime), new Date(trip.endTime))}
+            </ClientDateTime>
+          </div>
         </div>
         <div className="flex items-center gap-1" onClick={stopRowNavigation}>
           <MemorableToggle
