@@ -3,13 +3,11 @@ import type { Trip as PrismaTrip } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type {
   CreateTripInput,
-  PaginatedTrips,
   Trip,
   TripFilter,
   TripSummary,
   UpdateTripInput,
 } from "@/types/trip";
-import { normalizePageSize } from "@/lib/trip-query";
 
 function serviceError(operation: string, error: unknown): Error {
   const detail = error instanceof Error ? error.message : "Unknown database error";
@@ -31,32 +29,16 @@ function toTrip(trip: PrismaTrip): Trip {
   };
 }
 
-export async function getAllTrips(
-  filter: TripFilter,
-  page: number,
-  pageSize: number,
-): Promise<PaginatedTrips> {
+export async function getAllTrips(filter: TripFilter): Promise<Trip[]> {
   try {
     const where = filter === "memorable" ? { memorable: true } : undefined;
-    const normalizedPage = Number.isInteger(page) && page > 0 ? page : 1;
-    const normalizedPageSize = normalizePageSize(pageSize);
-    const totalCount = await prisma.trip.count({ where });
-    const totalPages = Math.max(1, Math.ceil(totalCount / normalizedPageSize));
-    const currentPage = Math.min(normalizedPage, totalPages);
 
     const trips = await prisma.trip.findMany({
       where,
       orderBy: { startTime: "desc" },
-      skip: (currentPage - 1) * normalizedPageSize,
-      take: normalizedPageSize,
     });
 
-    return {
-      trips: trips.map(toTrip),
-      totalCount,
-      totalPages,
-      currentPage,
-    };
+    return trips.map(toTrip);
   } catch (error) {
     throw serviceError("load trips", error);
   }

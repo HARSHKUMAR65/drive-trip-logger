@@ -6,35 +6,29 @@ import { useRouter } from "next/navigation";
 import { getTripsAction } from "@/actions/trip.actions";
 import { EmptyState } from "@/components/common/EmptyState";
 import { TripList } from "@/components/trip/TripList";
-import { TripPagination } from "@/components/trip/TripPagination";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import type { PaginatedTrips, TripFilter } from "@/types/trip";
+import type { Trip, TripFilter } from "@/types/trip";
 
 interface TripFilterTabsProps {
-  initialPagination: PaginatedTrips;
-  pageSize: number;
+  initialTrips: Trip[];
 }
 
-export function TripFilterTabs({
-  initialPagination,
-  pageSize,
-}: TripFilterTabsProps) {
+export function TripFilterTabs({ initialTrips }: TripFilterTabsProps) {
   const router = useRouter();
   const [filter, setFilter] = useState<TripFilter>("all");
-  const [pagination, setPagination] =
-    useState<PaginatedTrips>(initialPagination);
+  const [trips, setTrips] = useState<Trip[]>(initialTrips);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const loadTrips = (nextFilter: TripFilter, nextPage: number) => {
+  const loadTrips = (nextFilter: TripFilter) => {
     setLoadError(null);
     startTransition(async () => {
-      const result = await getTripsAction(nextFilter, nextPage, pageSize);
+      const result = await getTripsAction(nextFilter);
 
       if (!result.success || !result.data) {
         setLoadError(result.message);
@@ -42,18 +36,18 @@ export function TripFilterTabs({
       }
 
       setFilter(nextFilter);
-      setPagination(result.data);
+      setTrips(result.data);
     });
   };
 
   const handleFilterChange = (value: string) => {
     if (value === "all" || value === "memorable") {
-      loadTrips(value, 1);
+      loadTrips(value);
     }
   };
 
   const handleTripsChanged = () => {
-    loadTrips(filter, pagination.currentPage);
+    loadTrips(filter);
     router.refresh();
   };
 
@@ -77,7 +71,7 @@ export function TripFilterTabs({
           </p>
         ) : null}
         <TripList
-          trips={pagination.trips}
+          trips={trips}
           onTripsChanged={handleTripsChanged}
           isLoading={isPending}
           emptyState={
@@ -86,7 +80,7 @@ export function TripFilterTabs({
                 title="No memorable trips yet"
                 description="Star a trip that stood out and it will appear here for easy recall."
                 actionLabel="Browse all trips"
-                onAction={() => loadTrips("all", 1)}
+                onAction={() => loadTrips("all")}
               />
             ) : (
               <EmptyState
@@ -97,12 +91,6 @@ export function TripFilterTabs({
               />
             )
           }
-        />
-        <TripPagination
-          pagination={pagination}
-          pageSize={pageSize}
-          isLoading={isPending}
-          onPageChange={(page) => loadTrips(filter, page)}
         />
       </TabsContent>
     </Tabs>

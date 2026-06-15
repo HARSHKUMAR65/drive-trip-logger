@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -24,7 +24,11 @@ export function formatTripDay(date: Date): string {
 }
 
 export function formatTripTimeRange(startTime: Date, endTime: Date): string {
-  return `${format(startTime, "h:mm a")} - ${format(endTime, "h:mm a")}`;
+  if (isSameDay(startTime, endTime)) {
+    return `${format(startTime, "h:mm a")} - ${format(endTime, "h:mm a")}`;
+  }
+
+  return `${formatTripDate(startTime)} - ${formatTripDate(endTime)}`;
 }
 
 export function formatDateTimeInput(date: Date): string {

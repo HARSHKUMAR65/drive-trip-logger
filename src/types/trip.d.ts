@@ -31,13 +31,6 @@ export interface TripSummary {
 
 export type TripFilter = "all" | "memorable";
 
-export interface PaginatedTrips {
-  trips: Trip[];
-  totalCount: number;
-  totalPages: number;
-  currentPage: number;
-}
-
 export interface ServerActionResult<T = void> {
   success: boolean;
   message: string;

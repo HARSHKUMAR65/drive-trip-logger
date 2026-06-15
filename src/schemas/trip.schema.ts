@@ -1,6 +1,9 @@
+import { format, isValid, parse } from "date-fns";
 import { z } from "zod";
 
 export const MAX_NOTES_LENGTH = 500;
+const DATE_TIME_LOCAL_FORMAT = "yyyy-MM-dd'T'HH:mm";
+const DATE_TIME_LOCAL_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
 const requiredLocation = (label: string) =>
   z
@@ -13,9 +16,23 @@ const dateTimeField = (label: string) =>
   z
     .string()
     .min(1, `${label} is required`)
-    .refine((value) => !Number.isNaN(Date.parse(value)), {
-      message: `Enter a valid ${label.toLowerCase()}`,
-    });
+    .refine(
+      (value) => {
+        if (!DATE_TIME_LOCAL_PATTERN.test(value)) {
+          return false;
+        }
+
+        const parsedDate = parse(value, DATE_TIME_LOCAL_FORMAT, new Date());
+
+        return (
+          isValid(parsedDate) &&
+          format(parsedDate, DATE_TIME_LOCAL_FORMAT) === value
+        );
+      },
+      {
+        message: `Enter a valid ${label.toLowerCase()}`,
+      },
+    );
 
 export const tripFormSchema = z
   .object({

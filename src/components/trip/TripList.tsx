@@ -57,6 +57,19 @@ function useOpenTripEditor(publicId: string) {
   return { href, openEditor };
 }
 
+function TripStatusBadge({ memorable }: { memorable: boolean }) {
+  return memorable ? (
+    <Badge variant="memorable">
+      <Star className="size-3 fill-current" aria-hidden="true" />
+      Memorable
+    </Badge>
+  ) : (
+    <Badge variant="outline" className="text-muted-foreground">
+      Not memorable
+    </Badge>
+  );
+}
+
 function TripActions({ trip, onTripsChanged }: TripRowProps) {
   const { href } = useOpenTripEditor(trip.publicId);
 
@@ -160,12 +173,7 @@ function DesktopTripRow({ trip, onTripsChanged }: TripRowProps) {
             memorable={trip.memorable}
             onChanged={onTripsChanged}
           />
-          {trip.memorable ? (
-            <Badge variant="memorable" className="hidden xl:inline-flex">
-              <Star className="size-3 fill-current" aria-hidden="true" />
-              Memorable
-            </Badge>
-          ) : null}
+          <TripStatusBadge memorable={trip.memorable} />
         </div>
       </TableCell>
       <TableCell className="w-24">
@@ -206,6 +214,9 @@ function MobileTripRow({ trip, onTripsChanged }: TripRowProps) {
         <span className="shrink-0 text-xs font-medium text-muted-foreground">
           {formatTripDay(trip.startTime)}
         </span>
+      </div>
+      <div className="mt-2">
+        <TripStatusBadge memorable={trip.memorable} />
       </div>
       <div className="mt-3 flex items-center justify-between gap-3">
         <div className="min-w-0">

@@ -4,11 +4,6 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import {
-  DEFAULT_PAGE,
-  DEFAULT_PAGE_SIZE,
-  normalizePageSize,
-} from "@/lib/trip-query";
-import {
   createTrip,
   deleteTrip,
   getAllTrips,
@@ -21,7 +16,6 @@ import {
 } from "@/schemas/trip.schema";
 import type {
   CreateTripInput,
-  PaginatedTrips,
   ServerActionResult,
   Trip,
   TripFilter,
@@ -33,7 +27,6 @@ const publicIdSchema = z
   .trim()
   .uuid("A valid trip identifier is required");
 const tripFilterSchema = z.enum(["all", "memorable"]);
-const pageSchema = z.number().int().positive();
 
 function validationMessage(error: z.ZodError): string {
   return error.issues[0]?.message ?? "Check the form and try again";
@@ -167,14 +160,10 @@ export async function toggleMemorableAction(
 
 export async function getTripsAction(
   filter: TripFilter,
-  page = DEFAULT_PAGE,
-  pageSize = DEFAULT_PAGE_SIZE,
-): Promise<ServerActionResult<PaginatedTrips>> {
+): Promise<ServerActionResult<Trip[]>> {
   const parsedFilter = tripFilterSchema.safeParse(filter);
-  const parsedPage = pageSchema.safeParse(page);
-  const parsedPageSize = pageSchema.safeParse(pageSize);
 
-  if (!parsedFilter.success || !parsedPage.success || !parsedPageSize.success) {
+  if (!parsedFilter.success) {
     return {
       success: false,
       message: "Invalid trip filter request.",
@@ -182,15 +171,11 @@ export async function getTripsAction(
   }
 
   try {
-    const pagination = await getAllTrips(
-      parsedFilter.data,
-      parsedPage.data,
-      normalizePageSize(parsedPageSize.data),
-    );
+    const trips = await getAllTrips(parsedFilter.data);
     return {
       success: true,
       message: "Trips loaded",
-      data: pagination,
+      data: trips,
     };
   } catch {
     return {

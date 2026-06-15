@@ -47,6 +47,7 @@ interface DateInputProps {
 
 interface ScheduleRowProps {
   id: string;
+  step: string;
   title: string;
   description: string;
   dateLabel: string;
@@ -152,6 +153,7 @@ function DateInput({
 
 function ScheduleRow({
   id,
+  step,
   title,
   description,
   dateLabel,
@@ -174,8 +176,8 @@ function ScheduleRow({
       aria-labelledby={`${id}-heading`}
     >
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-background text-primary shadow-sm">
-          <Clock3 className="size-4" aria-hidden="true" />
+        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground shadow-sm">
+          {step}
         </span>
         <div className="min-w-0">
           <p id={`${id}-heading`} className="text-sm font-semibold">
@@ -310,6 +312,7 @@ export function TripDateTimeRangePicker({
       </div>
       <ScheduleRow
         id="trip-departure"
+        step="1"
         title="Departure"
         description="Start date and time for the trip."
         dateLabel="Departure date"
@@ -322,8 +325,9 @@ export function TripDateTimeRangePicker({
       />
       <ScheduleRow
         id="trip-arrival"
+        step="2"
         title="Arrival"
-        description="End date and time for the trip."
+        description="Same-day by default; choose a later date for longer trips."
         dateLabel="Arrival date"
         timeLabel="Arrival time"
         datePlaceholder="Select arrival date"
