@@ -2,8 +2,6 @@ services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-drive_logger}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-drive_logger}
@@ -27,8 +25,6 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-drive_logger}:${POSTGRES_PASSWORD:-drive_logger}@db:5432/${POSTGRES_DB:-drive_trip_logger}?schema=public
     depends_on:

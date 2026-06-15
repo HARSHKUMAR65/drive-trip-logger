@@ -1,70 +1,59 @@
 # Drive Trip Logger
 
-A focused trip journal for recording routes, timing, distance, notes, and the drives worth remembering.
+A responsive trip journal for recording routes, departure and arrival times,
+distance, notes, and memorable drives.
 
 ## How to run
 
-1. Create the environment file if it does not exist:
+Requirements: Docker with Docker Compose.
 
-   ```bash
-   cp .env.example .env
-   ```
-
-2. Start PostgreSQL, apply the committed Prisma migration, and run the app:
-
-   ```bash
-   docker compose up --build
-   ```
-
-Open [http://localhost:3000](http://localhost:3000). The app container waits for PostgreSQL to become healthy before running `prisma migrate deploy` and starting Next.js.
-
-For local development outside Docker, the Compose database is published on
-`127.0.0.1:5433` to avoid conflicting with a system PostgreSQL instance on the
-default port. Start the database and run the app:
+After cloning the repository, start the database, apply the committed Prisma
+migrations, build the app, and run everything with one command:
 
 ```bash
-docker compose up -d db
-pnpm prisma:migrate
-pnpm dev
+docker compose up --build
 ```
 
-The local dev server uses [http://localhost:3005](http://localhost:3005).
+Open [http://localhost:3000](http://localhost:3000). PostgreSQL data is kept in
+a Docker volume, so it survives container restarts.
 
-## Tech stack & why
+No environment-file setup is required for local evaluation because Compose uses
+development defaults. To override the database credentials or run the app
+outside Docker, copy `.env.example` to `.env` and adjust the values.
 
-Next.js 15 App Router and Server Actions keep reads, mutations, and rendering close together while React Hook Form, Zod, Tailwind CSS, shadcn/ui, and Sonner provide a small typed UI layer. Prisma centralizes database access and produces a strict client contract. PostgreSQL was chosen for durable relational storage, reliable date and aggregate behavior, and a straightforward production path compared with file-backed alternatives.
+## Tech stack and why
 
-## Project structure
+Next.js 15 with the App Router and Server Actions provides the React UI and backend in one typed codebase, which keeps this small CRUD application straightforward. Prisma gives the service layer a type-safe database client and repeatable migrations. PostgreSQL was selected for durable relational storage and reliable date, filtering, and aggregate queries.
 
-- `src/app` - App Router pages, layouts, loading, error, and not-found states.
-- `src/actions` - validated Server Action entry points for all mutations.
-- `src/components` - shared layout, trip, common, and shadcn-style UI components.
-- `src/lib` - Prisma singleton and shared formatting/class utilities.
-- `src/schemas` - reusable Zod form validation.
-- `src/services` - the only layer that performs Prisma queries.
-- `src/types` - shared trip domain types.
-- `prisma` - schema and committed PostgreSQL migration.
-- `public` - static assets served by Next.js.
+## What I would do next
 
-## Assumptions made
+With another two days, I would:
 
-- Locations are free-form labels capped at 120 characters; map lookup is intentionally excluded.
-- Date-time inputs use the browser's local timezone and Prisma stores the resulting timestamps.
-- Distance supports decimal kilometers and is displayed with at most one decimal place.
-- Memorable filtering is handled from the trip list UI through Server Actions.
-- Pagination is intentionally omitted because the assignment scope asks for a small all-trips list.
-- Successful create, edit, and delete actions redirect to a fresh server-rendered list and show a Sonner toast.
+- Add unit tests for validation and date handling, integration tests for the
+  Prisma service, and end-to-end coverage for create, edit, delete, filter, and
+  memorable workflows.
+- Add server-side pagination instead of loading the complete trip history.
+- Add authentication and per-user trip ownership.
+- Store an explicit IANA timezone with each trip and test daylight-saving and
+  cross-timezone behavior.
+- Improve operational readiness with structured logs, health checks, metrics,
+  automated backups, and CI checks.
 
-## What's next
+The main features cut for time were authentication, comprehensive automated
+tests, server-side pagination, and production observability.
 
-- Add focused unit tests for schema and filter edge cases plus service integration tests against a disposable PostgreSQL database.
-- Add end-to-end coverage for create, edit, delete, filter, and memorable-toggle workflows.
-- Add observability, structured logging, backups, and deployment-specific health endpoints.
-- Improve timezone handling by storing a user-selected IANA timezone alongside each trip.
+## What broke or felt off
 
-## Known limitations
+- Local development originally collided with an existing PostgreSQL process on
+  port `5432`. The Compose database is now exposed only on
+  `127.0.0.1:5433`, while containers continue to use `db:5432`.
+- Date-time values currently depend on the browser's local timezone. This works
+  for a single-user local app but is not sufficient for users traveling between
+  timezones.
+- The memorable toggle is optimistic, but failed updates are reported rather
+  than automatically retried.
 
-- There is no authentication or ownership model, as required by the assignment, so one shared dataset is visible to every visitor.
-- Very large trip histories would need pagination or virtualized rendering.
-- The memorable toggle uses an optimistic UI but does not queue retries after a failed request.
-- Production operations still need managed secrets, database backups, monitoring, and a hardened deployment platform.
+I would not deploy this version as a multi-user production service yet. It has
+no authentication or ownership boundary, the example database credentials must
+be replaced with managed secrets, and it still needs automated tests, backups,
+monitoring, rate limiting, and a documented recovery process.
