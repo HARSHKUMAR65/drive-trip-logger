@@ -1,60 +1,36 @@
 # Drive Trip Logger
 
-A responsive trip journal for recording routes, departure and arrival times,
-distance, notes, and memorable drives.
+A responsive trip journal for ROVE customers to log their driving trips and highlight memorable ones.
 
 ## How to run
 
-Requirements: Docker with Docker Compose.
-
-After cloning the repository, start the database, apply the committed Prisma
-migrations, build the app, and run everything with one command:
+To run the entire stack (frontend, backend, database) with a single command, run:
 
 ```bash
 docker compose up --build
 ```
 
-Open [http://localhost:3000](http://localhost:3000). PostgreSQL data is kept in
-a Docker volume, so it survives container restarts.
+Once running, open [http://localhost:3000](http://localhost:3000) in your browser. 
 
-No environment-file setup is required for local evaluation because Compose uses
-development defaults. To override the database credentials or run the app
-outside Docker, copy `.env.example` to `.env` and adjust the values.
+*Note: No manual environment-file setup is required for local evaluation because Docker Compose uses development defaults out of the box. If you wish to override credentials or run the application outside of Docker, copy `.env.example` to `.env` and adjust the values accordingly.*
 
 ## Tech stack and why
 
-Next.js 15 with the App Router and Server Actions provides the React UI and backend in one typed codebase, which keeps this small CRUD application straightforward. Prisma gives the service layer a type-safe database client and repeatable migrations. PostgreSQL was selected for durable relational storage and reliable date, filtering, and aggregate queries.
-
-## Implemented Improvements
-
-The following production readiness improvements have been completed:
-- **UTC Database Storage & Local Timezone Rendering**: Trips are now saved with UTC timestamps in the database. The client dynamically parses and displays them in the browser's local timezone. Layout-matching skeletons prevent Next.js hydration mismatches on date rendering and form initialization.
-- **Atomic Star Toggling (No Race Conditions)**: Converted the read-modify-write star toggling logic into an atomic `UPDATE` query utilizing PostgreSQL's row-level locking. Tab filtering has been shifted entirely to the client synchronously, preventing filter race conditions.
-- **Scale-Ready Database Pagination & Filtering**: Filter and limit states are driven entirely by URL search parameters (`?filter=all&limit=10`). The database queries use `take` limits on the server, and all client-side states have been removed. This eliminates out-of-order race conditions and ensures summary card/list state synchronization naturally.
-- **Production Observability (Error Logs)**: Configured Server Action catch blocks to capture error objects and output them via `console.error` for cloud logging providers (Vercel, AWS CloudWatch, Sentry).
+Next.js 15 with the App Router and Server Actions provides a cohesive full-stack React UI and backend API in a single type-safe codebase, keeping development streamlined. Prisma was chosen as the ORM to provide a type-safe database client, schema safety, and repeatable migration tracking. PostgreSQL was selected for relational storage because of its robust date-time formatting, concurrency controls (exclusive row-level locking), and reliable indexing for ordered dashboard listings.
 
 ## What I would do next
 
-With another two days, I would:
+If I had another two days, I would build and improve:
+- **Comprehensive Testing**: Add unit tests for timezone/picker date math, integration tests for Prisma queries, and end-to-end testing (Cypress or Playwright) covering create, edit, delete, and toggle flows.
+- **Explicit IANA Timezone Storage**: Store the user's specific IANA timezone string alongside the UTC timestamps in the database to support travel across daylight-saving and timezone boundaries.
+- **Authentication & Multi-Tenant Isolation**: Add user accounts and row-level ownership to secure and separate trips between customers.
 
-- Add unit tests for validation and date handling, integration tests for the
-  Prisma service, and end-to-end coverage for create, edit, delete, filter, and
-  memorable workflows.
-- Add authentication and per-user trip ownership.
-- Store an explicit IANA timezone with each trip and test daylight-saving and
-  cross-timezone behavior.
+*What was cut for time:* Multi-user authentication and comprehensive automated test suites.
 
-The main features cut for time were authentication and comprehensive automated tests.
+## Anything that broke or felt off
 
-## What broke or felt off
-
-- Local development originally collided with an existing PostgreSQL process on
-  port `5432`. The Compose database is now exposed only on
-  `127.0.0.1:5433`, while containers continue to use `db:5432`.
-- The memorable toggle is optimistic, but failed updates are reported rather
-  than automatically retried.
-
-I would not deploy this version as a multi-user production service yet. It has
-no authentication or ownership boundary, the example database credentials must
-be replaced with managed secrets, and it still needs automated tests, backups,
-monitoring, rate limiting, and a documented recovery process.
+I would not put this version into production yet for the following reasons:
+- **Lack of Authentication & Authorization**: There is no authentication layer or data ownership boundary; any visitor can currently view, edit, or delete any trip.
+- **Optimistic UI Error Recovery**: The memorable toggle operates optimistically on the client, but lacks an automatic retry queue or state rollback if the network/database action fails.
+- **Port Conflict in Development**: Local Compose originally clashed with local PostgreSQL instances on port `5432`; it has been configured to map to `127.0.0.1:5433` for local host access while maintaining isolated container communication.
+- **Production Secrets**: The database credentials in the Compose configuration use development defaults and must be replaced with managed secrets (e.g. AWS Secrets Manager or Vercel Env) before cloud deployment.
